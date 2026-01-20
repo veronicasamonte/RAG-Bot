@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      #query {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      #results-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+      }
+      #standard-result, #custom-result {
+        width: 48%;
+      }
+      #relevant-text {
+        margin-top: 20px;
+        border-top: 1px solid #ccc;
+        padding-top: 10px;
+      }
+      pre {
+        white-space: pre-wrap; /* Ensures text wrapping */
+        word-wrap: break-word; /* Allows long words to be broken */
+      }
+      .hidden {
+        display: none;
+      }
+      #loading {
+        display: none;
+        margin-top: 20px;
+        text-align: center;
+      }
+      #loading img {
+        width: 50px;
+        height: 50px;
+      }
+    </style>
+    <script>
+      function getAnswers() {
+        const query = document.getElementById("query").value;
+        
+        // Show the loading spinner
+        document.getElementById("loading").style.display = "block";
+
+        // Hide the previous results
+        document.getElementById("standard-label").classList.add("hidden");
+        document.getElementById("custom-label").classList.add("hidden");
+        document.getElementById("relevant-label").classList.add("hidden");
+        document.getElementById("standard-result-pre").innerText = "";
+        document.getElementById("custom-result-pre").innerText = "";
+        document.getElementById("relevant-text-pre").innerText = "";
+
+        google.script.run.withSuccessHandler(displayResults)
+                         .getAnswers(query);
+      }
+
+      function displayResults(results) {
+        // Hide the loading spinner
+        document.getElementById("loading").style.display = "none";
+
+        // Display the results
+        document.getElementById("standard-label").classList.remove("hidden");
+        document.getElementById("standard-result-pre").innerText = results.standard;
+
+        document.getElementById("custom-label").classList.remove("hidden");
+        document.getElementById("custom-result-pre").innerText = results.custom;
+
+        document.getElementById("relevant-label").classList.remove("hidden");
+        document.getElementById("relevant-text-pre").innerText = results.relevantText;
+      }
+    </script>
+  </head>
+  <body>
+    <p>Be patient, the server is slow.</p>
+    <input type="text" id="query" placeholder="Enter your question...">
+    <button onclick="getAnswers()">Search</button>
+
+    <!-- Loading spinner -->
+    <div id="loading">
+      <img src="https://i.imgur.com/llF5iyg.gif" alt="Loading...">
+      <p>Processing your query...</p>
+    </div>
+
+    <div id="results-container">
+      <div id="standard-result">
+        <h3 id="standard-label" class="hidden">Standard AI response</h3>
+        <pre id="standard-result-pre"></pre>
+      </div>
+      <div id="custom-result">
+         <h3 id="custom-label" class="hidden">The Giver Bot response</h3>   <!-- change this !!! -->
+        <pre id="custom-result-pre"></pre>
+      </div>
+    </div>
+
+    <div id="relevant-text">
+      <h3 id="relevant-label" class="hidden">Relevant Paragraphs from The Giver</h3>
+      <pre id="relevant-text-pre"></pre>
+    </div>
+  </body>
+</html>
