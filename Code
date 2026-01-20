@@ -1,0 +1,150 @@
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('Index'); 
+}
+
+function retrieveAndRankTextWithStoredEmbeddings(query, sheetId, sheetName) {
+  const sheet = SpreadsheetApp.openById(sheetId).getSheetByName(sheetName);
+  const dataRange = sheet.getDataRange();
+  const data = dataRange.getValues();
+  const queryEmbedding = generateEmbeddings(query);
+
+  let rankedSegments = [];
+
+  data.forEach(row => {
+    const paragraph = row[0];
+    const storedEmbedding = JSON.parse(row[1]);
+    const similarity = cosineSimilarity(queryEmbedding, storedEmbedding);
+
+    rankedSegments.push({ text: paragraph, score: similarity });
+  });
+
+ 
+  rankedSegments.sort((a, b) => b.score - a.score);
+
+
+  const topSegments = rankedSegments.slice(0, 5).map(segment => segment.text);
+
+  return topSegments.join('\n\n');
+}
+
+function generateEmbeddings(text) {
+  const apiKey = '[API Key]';
+  const url = 'https://api.openai.com/v1/embeddings';
+
+  const data = {
+    model: "text-embedding-ada-002", // 
+    input: text
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey
+    },
+    payload: JSON.stringify(data)
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const json = JSON.parse(response.getContentText());
+    return json.data[0].embedding;
+  } catch (e) {
+    Logger.log('Error: ' + e.toString());
+    return null;
+  }
+}
+
+function cosineSimilarity(vecA, vecB) {
+  const dotProduct = vecA.reduce((sum, a, idx) => sum + a * vecB[idx], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  
+  return dotProduct / (magnitudeA * magnitudeB);
+}
+
+function getRelevantText(query) {
+  const sheetId = "1uNHI2ROVHYQ0kxnr1sr2QRriQa1Uvl7AYYjlBozFwXs"; 
+  const sheetName = "Sheet1";   
+  
+  const relevantText = retrieveAndRankTextWithStoredEmbeddings(query, sheetId, sheetName);
+  return relevantText;
+}
+
+function getChatGPTStandard(query) {
+  const apiKey = '[API Key]'; // 
+  const url = 'https://api.openai.com/v1/chat/completions';
+
+  const data = {
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: query }
+    ],
+    max_tokens: 150
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey
+    },
+    payload: JSON.stringify(data)
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const json = JSON.parse(response.getContentText());
+    return json.choices[0].message.content;
+  } catch (e) {
+    Logger.log('Error: ' + e.toString());
+    return 'Error: ' + e.toString();
+  }
+}
+
+function getChatGPTCustom(query, context) {
+  const apiKey = '[API Key]'; 
+  const url = 'https://api.openai.com/v1/chat/completions';
+
+  const prompt = `Context: ${context}\n\nUser Query: ${query}`;
+
+  const data = {
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      { role: "user", content: prompt }
+    ],
+    max_tokens: 250 
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey
+    },
+    payload: JSON.stringify(data)
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const json = JSON.parse(response.getContentText());
+    return json.choices[0].message.content;
+  } catch (e) {
+    Logger.log('Error: ' + e.toString());
+    return 'Error: ' + e.toString();
+  }
+}
+
+function getAnswers(query) {
+  const relevantText = getRelevantText(query);
+  const standardAnswer = getChatGPTStandard(query);
+  const customAnswer = getChatGPTCustom(query, relevantText);
+
+  return {
+    standard: standardAnswer,
+    custom: customAnswer,
+    relevantText: relevantText
+  };
+}
